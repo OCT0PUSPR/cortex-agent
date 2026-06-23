@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional
 
-from ..llm.base import LLMBackend, Message, ToolCall
+from ..llm.base import LLMBackend, Message
 from ..memory.store import Memory
 from ..tools.base import ToolRegistry
 from .planner import Plan, Planner

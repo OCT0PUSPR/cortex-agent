@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from cortex.tools import Tool, ToolRegistry, ToolResult
 from cortex.tools.builtin import calculator, current_time, run_python
 
