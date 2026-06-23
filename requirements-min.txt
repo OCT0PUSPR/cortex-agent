@@ -1,0 +1,14 @@
+# Minimal dependencies for CI: lint + run the full test suite with the MockLLM
+# backend only. No network, no API keys, no heavy ML deps required.
+#
+# Note: the framework's CORE (agent loop, tools, memory, MockLLM) runs on the
+# Python standard library alone; these packages enable the API server, CLI
+# polish, config, and the test runner.
+pytest>=8.0.0
+ruff>=0.4.0
+rich>=13.7.0
+httpx>=0.27.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+fastapi>=0.110.0
+sse-starlette>=2.1.0

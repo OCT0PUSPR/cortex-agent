@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: lint + test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+
+    # The MockLLM backend means tests need no API key and no network.
+    env:
+      CORTEX_BACKEND: mock
+      CORTEX_ENABLE_NETWORK_TOOLS: "false"
+      CORTEX_WORKSPACE: .cortex/workspace
+      CORTEX_MEMORY_DB: .cortex/memory.sqlite
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install minimal dependencies (no heavy ML deps)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-min.txt
+
+      - name: Lint with ruff
+        run: ruff check cortex tests
+
+      - name: Compile check
+        run: python -m py_compile $(git ls-files '*.py')
+
+      - name: Run tests (MockLLM only, offline)
+        run: pytest -q

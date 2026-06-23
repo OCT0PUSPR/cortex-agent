@@ -1,0 +1,26 @@
+services:
+  cortex:
+    build: .
+    image: cortex-agent:latest
+    container_name: cortex-agent
+    ports:
+      - "8000:8000"
+    environment:
+      # Default to the offline mock backend so the stack runs with no API key.
+      CORTEX_BACKEND: ${CORTEX_BACKEND:-mock}
+      CORTEX_MODEL: ${CORTEX_MODEL:-}
+      CORTEX_MAX_STEPS: ${CORTEX_MAX_STEPS:-8}
+      CORTEX_WORKSPACE: /app/.cortex/workspace
+      CORTEX_MEMORY_DB: /app/.cortex/memory.sqlite
+      # Pass these through from your shell / .env to use real backends:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+    env_file:
+      - .env
+    volumes:
+      # Persist memory + workspace across container restarts.
+      - cortex-data:/app/.cortex
+    restart: unless-stopped
+
+volumes:
+  cortex-data:

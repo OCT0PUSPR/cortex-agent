@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cortex-agent</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="logo">◆</span>
+          <span class="title">cortex<span class="accent">-agent</span></span>
+        </div>
+        <div class="controls">
+          <label class="ctl">
+            backend
+            <select id="backend">
+              <option value="mock" selected>mock (offline)</option>
+              <option value="anthropic">anthropic</option>
+              <option value="hf">huggingface</option>
+            </select>
+          </label>
+          <label class="ctl">
+            max steps
+            <input id="maxSteps" type="number" min="1" max="20" value="8" />
+          </label>
+          <span id="status" class="status idle">idle</span>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="stream" id="streamPanel">
+          <div class="placeholder" id="placeholder">
+            <h2>Autonomous agent loop</h2>
+            <p>
+              Give the agent a goal. Watch it plan, reason, call tools, and
+              synthesize an answer — streamed live over SSE.
+            </p>
+            <ul class="examples">
+              <li data-goal="Calculate 21 * 2 and tell me the current time">
+                Calculate 21 * 2 and tell me the current time
+              </li>
+              <li data-goal="Search for information about cortex-agent and summarize it">
+                Search for information about cortex-agent
+              </li>
+              <li data-goal="Write a file notes.txt and read it back">
+                Write a file notes.txt and read it back
+              </li>
+            </ul>
+          </div>
+          <div id="events" class="events"></div>
+        </section>
+
+        <aside class="sidebar">
+          <h3>Plan</h3>
+          <ol id="plan" class="plan"></ol>
+          <h3>Timeline</h3>
+          <div id="timeline" class="timeline"></div>
+        </aside>
+      </main>
+
+      <footer class="composer">
+        <input
+          id="goal"
+          type="text"
+          placeholder="Give the agent a goal…"
+          autocomplete="off"
+        />
+        <button id="send">Run</button>
+      </footer>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
