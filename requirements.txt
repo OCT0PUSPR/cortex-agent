@@ -6,7 +6,10 @@ httpx>=0.27.0
 # Config
 pydantic>=2.6.0
 pydantic-settings>=2.2.0
-python-dotenv>=1.2.2          # GHSA-mf9w-mj56-hr94 fixed in 1.2.2
+# python-dotenv 1.2.2 fixes GHSA-mf9w-mj56-hr94 but requires Python >=3.10;
+# on 3.9 the latest compatible release (1.2.1) is used.
+python-dotenv>=1.2.2; python_version >= "3.10"
+python-dotenv>=1.0.0; python_version < "3.10"
 email-validator>=2.1.0
 # API server + SSE streaming
 fastapi>=0.110.0

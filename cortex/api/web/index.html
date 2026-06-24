@@ -3,74 +3,273 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
     <title>cortex-agent</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <div class="app">
+    <div class="app" id="app">
+      <!-- ===================== TOP BAR ===================== -->
       <header class="topbar">
         <div class="brand">
-          <span class="logo">◆</span>
+          <button
+            class="icon-btn sidebar-toggle"
+            id="sidebarToggle"
+            type="button"
+            aria-label="Toggle sessions sidebar"
+            title="Toggle sidebar"
+          >
+            <span class="hamburger" aria-hidden="true"></span>
+          </button>
+          <span class="logo" aria-hidden="true">◆</span>
           <span class="title">cortex<span class="accent">-agent</span></span>
+          <span class="env-badge" id="authModeBadge" title="Authentication mode"></span>
         </div>
-        <div class="controls">
-          <label class="ctl">
-            backend
-            <select id="backend">
-              <option value="mock" selected>mock (offline)</option>
-              <option value="anthropic">anthropic</option>
-              <option value="hf">huggingface</option>
-            </select>
-          </label>
-          <label class="ctl">
-            max steps
-            <input id="maxSteps" type="number" min="1" max="20" value="8" />
-          </label>
-          <span id="status" class="status idle">idle</span>
+
+        <div class="topbar-center">
+          <div class="meter" id="meter" aria-live="polite">
+            <div class="meter-cell" title="Run status">
+              <span class="meter-label">status</span>
+              <span id="status" class="status idle">idle</span>
+            </div>
+            <div class="meter-cell" title="Elapsed time">
+              <span class="meter-label">elapsed</span>
+              <span class="meter-val" id="elapsed">0.0s</span>
+            </div>
+            <div class="meter-cell" title="Tokens used this run">
+              <span class="meter-label">tokens</span>
+              <span class="meter-val" id="tokens">0</span>
+            </div>
+            <div class="meter-cell" title="Estimated cost (USD)">
+              <span class="meter-label">cost</span>
+              <span class="meter-val accent" id="cost">$0.0000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <span id="reconnect" class="reconnect-pill" hidden>
+            <span class="spinner" aria-hidden="true"></span> reconnecting…
+          </span>
+          <div class="account" id="account">
+            <button class="btn btn-ghost" id="signInBtn" type="button">Sign in</button>
+            <div class="account-info" id="accountInfo" hidden>
+              <span class="avatar" id="avatar" aria-hidden="true"></span>
+              <span class="account-email" id="accountEmail"></span>
+              <button class="btn btn-ghost btn-sm" id="signOutBtn" type="button">
+                Sign out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main class="layout">
-        <section class="stream" id="streamPanel">
-          <div class="placeholder" id="placeholder">
-            <h2>Autonomous agent loop</h2>
-            <p>
-              Give the agent a goal. Watch it plan, reason, call tools, and
-              synthesize an answer — streamed live over SSE.
-            </p>
-            <ul class="examples">
-              <li data-goal="Calculate 21 * 2 and tell me the current time">
-                Calculate 21 * 2 and tell me the current time
-              </li>
-              <li data-goal="Search for information about cortex-agent and summarize it">
-                Search for information about cortex-agent
-              </li>
-              <li data-goal="Write a file notes.txt and read it back">
-                Write a file notes.txt and read it back
-              </li>
-            </ul>
+      <!-- ===================== BODY ===================== -->
+      <div class="body">
+        <!-- ----------- SESSIONS SIDEBAR ----------- -->
+        <aside class="sessions" id="sessions" aria-label="Sessions">
+          <div class="sessions-head">
+            <h2>Sessions</h2>
+            <button class="btn btn-accent btn-sm" id="newRunBtn" type="button">
+              + New run
+            </button>
           </div>
-          <div id="events" class="events"></div>
-        </section>
-
-        <aside class="sidebar">
-          <h3>Plan</h3>
-          <ol id="plan" class="plan"></ol>
-          <h3>Timeline</h3>
-          <div id="timeline" class="timeline"></div>
+          <div class="sessions-list" id="sessionsList">
+            <p class="sessions-empty" id="sessionsEmpty">
+              No sessions yet. Run the agent to start one.
+            </p>
+          </div>
+          <div class="sessions-foot">
+            <button class="btn btn-ghost btn-sm" id="refreshSessionsBtn" type="button">
+              ↻ Refresh
+            </button>
+          </div>
         </aside>
-      </main>
 
+        <!-- ----------- CENTER: LIVE RUN ----------- -->
+        <main class="stream" id="streamPanel">
+          <div class="placeholder" id="placeholder">
+            <div class="placeholder-inner">
+              <div class="placeholder-mark" aria-hidden="true">◆</div>
+              <h1>Autonomous agent loop</h1>
+              <p>
+                Give the agent a goal. Watch it plan, reason, call tools, and
+                synthesize an answer — streamed live over SSE.
+              </p>
+              <ul class="examples" id="examples">
+                <li data-goal="Calculate 21 * 2 and tell me the current time">
+                  <span class="ex-icon" aria-hidden="true">∑</span>
+                  Calculate 21 × 2 and tell me the current time
+                </li>
+                <li data-goal="Search for information about cortex-agent and summarize it">
+                  <span class="ex-icon" aria-hidden="true">⌕</span>
+                  Search for information and summarize it
+                </li>
+                <li data-goal="Write a file notes.txt and read it back">
+                  <span class="ex-icon" aria-hidden="true">⌸</span>
+                  Write a file notes.txt and read it back
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="run-header" id="runHeader" hidden>
+            <div class="run-goal" id="runGoal"></div>
+            <div class="run-tags" id="runTags"></div>
+          </div>
+
+          <div id="events" class="events" aria-live="polite"></div>
+        </main>
+
+        <!-- ----------- RIGHT: PLAN + TIMELINE ----------- -->
+        <aside class="inspector" aria-label="Plan and timeline">
+          <section class="insp-section">
+            <h3>Plan</h3>
+            <ol id="plan" class="plan">
+              <li class="plan-empty">The plan will appear here.</li>
+            </ol>
+          </section>
+          <section class="insp-section">
+            <h3>Timeline</h3>
+            <div id="timeline" class="timeline">
+              <p class="tl-empty">Events stream here as they happen.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <!-- ===================== COMPOSER ===================== -->
       <footer class="composer">
-        <input
-          id="goal"
-          type="text"
-          placeholder="Give the agent a goal…"
-          autocomplete="off"
-        />
-        <button id="send">Run</button>
+        <div class="composer-controls">
+          <label class="ctl">
+            <span class="ctl-label">backend</span>
+            <select id="backend" aria-label="Backend">
+              <option value="mock" selected>mock (offline)</option>
+              <option value="anthropic">anthropic</option>
+              <option value="hf">huggingface</option>
+              <option value="tinybrain">tinybrain</option>
+            </select>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">model</span>
+            <input
+              id="model"
+              type="text"
+              placeholder="(optional)"
+              autocomplete="off"
+              aria-label="Model override"
+            />
+          </label>
+          <label class="ctl ctl-narrow">
+            <span class="ctl-label">max steps</span>
+            <input
+              id="maxSteps"
+              type="number"
+              min="1"
+              max="20"
+              value="8"
+              aria-label="Max steps"
+            />
+          </label>
+        </div>
+        <div class="composer-row">
+          <textarea
+            id="goal"
+            rows="1"
+            placeholder="Give the agent a goal…  (Enter to run, Shift+Enter for newline)"
+            autocomplete="off"
+            aria-label="Agent goal"
+          ></textarea>
+          <button id="cancelBtn" class="btn btn-danger" type="button" hidden>
+            Cancel
+          </button>
+          <button id="send" class="btn btn-accent btn-run" type="button">
+            <span class="run-label">Run</span>
+            <span class="run-spinner" aria-hidden="true"></span>
+          </button>
+        </div>
       </footer>
     </div>
+
+    <!-- ===================== AUTH MODAL ===================== -->
+    <div class="modal-overlay" id="authModal" hidden>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="authTitle"
+      >
+        <div class="modal-head">
+          <h2 id="authTitle">Welcome to cortex</h2>
+          <button
+            class="icon-btn"
+            id="authClose"
+            type="button"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button
+            class="tab active"
+            id="tabLogin"
+            type="button"
+            role="tab"
+            aria-selected="true"
+          >
+            Login
+          </button>
+          <button
+            class="tab"
+            id="tabRegister"
+            type="button"
+            role="tab"
+            aria-selected="false"
+          >
+            Register
+          </button>
+        </div>
+        <form class="auth-form" id="authForm">
+          <label class="field">
+            <span class="field-label">Email</span>
+            <input
+              id="authEmail"
+              type="email"
+              required
+              autocomplete="email"
+              placeholder="you@example.com"
+            />
+          </label>
+          <label class="field">
+            <span class="field-label">Password</span>
+            <input
+              id="authPassword"
+              type="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+            />
+            <span class="field-hint" id="authHint" hidden
+              >Minimum 8 characters.</span
+            >
+          </label>
+          <p class="auth-error" id="authError" hidden></p>
+          <button class="btn btn-accent btn-block" id="authSubmit" type="submit">
+            <span class="auth-submit-label">Sign in</span>
+            <span class="run-spinner" aria-hidden="true"></span>
+          </button>
+          <p class="auth-foot">
+            Anonymous use is allowed when the server doesn't require auth — you
+            can close this and just run.
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===================== TOASTS ===================== -->
+    <div class="toasts" id="toasts" aria-live="assertive" aria-atomic="true"></div>
+
     <script src="/app.js"></script>
   </body>
 </html>

@@ -19,7 +19,7 @@ import math
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import torch
 
@@ -142,7 +142,10 @@ def save_model_only(path: str, model: TinyBrain, step: int, model_cfg: TinyBrain
     written file size in bytes.
     """
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    base = getattr(model, "_orig_mod", model)  # unwrap torch.compile if present
+    # Unwrap a possibly torch.compile-d model (it stashes the original under
+    # `_orig_mod`); fall back to the model itself. cast keeps mypy happy whether
+    # or not torch's types are available (CI runs mypy without torch installed).
+    base = cast(TinyBrain, getattr(model, "_orig_mod", model))
     state = {k: v.detach().to("cpu") for k, v in base.state_dict().items()}
     torch.save(
         {"model": state, "step": step, "model_config": asdict(model_cfg), "slim": True},

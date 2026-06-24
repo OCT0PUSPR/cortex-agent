@@ -20,7 +20,9 @@ httpx>=0.27.0
 rich>=13.7.0
 pydantic>=2.6.0
 pydantic-settings>=2.2.0
-python-dotenv>=1.2.2          # GHSA-mf9w-mj56-hr94 fixed in 1.2.2
+# python-dotenv 1.2.2 (GHSA-mf9w-mj56-hr94 fix) needs Python >=3.10; 1.2.1 on 3.9.
+python-dotenv>=1.2.2; python_version >= "3.10"
+python-dotenv>=1.0.0; python_version < "3.10"
 email-validator>=2.1.0
 fastapi>=0.110.0
 # starlette 1.3.1 fixes PYSEC-2026-161 / GHSA-* but requires Python >=3.10.
