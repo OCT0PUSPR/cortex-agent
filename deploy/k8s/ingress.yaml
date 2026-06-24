@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cortex-api
+  namespace: cortex
+  labels:
+    app.kubernetes.io/name: cortex-agent
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: cortex-agent
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # SSE streaming (GET /runs/{id}/stream) needs buffering off.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # Uncomment once cert-manager + a ClusterIssuer are installed to auto-issue
+    # the TLS certificate referenced in the tls: section below.
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # ---------------------------------------------------------------------------
+  # TLS: requires cert-manager (https://cert-manager.io) to provision the
+  # `cortex-tls` Secret automatically, OR provide the Secret manually. Uncomment
+  # this block and the cert-manager annotation above to enable HTTPS.
+  # ---------------------------------------------------------------------------
+  # tls:
+  #   - hosts:
+  #       - cortex.example.com
+  #     secretName: cortex-tls
+  rules:
+    - host: cortex.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cortex-api
+                port:
+                  number: 80

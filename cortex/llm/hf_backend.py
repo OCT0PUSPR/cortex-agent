@@ -34,19 +34,16 @@ _TOOL_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 def _build_tool_prompt(tools: List[Dict[str, Any]]) -> str:
     """Render a tool-use instruction block for models without native tools."""
     lines = [
-        "You can call tools. To call a tool, respond with ONLY a fenced json "
-        "block of the form:",
-        '```json',
+        "You can call tools. To call a tool, respond with ONLY a fenced json block of the form:",
+        "```json",
         '{"tool": "<tool_name>", "arguments": {<args>}}',
-        '```',
+        "```",
         "Available tools:",
     ]
     for tool in tools:
         schema = json.dumps(tool.get("input_schema", {}).get("properties", {}))
         lines.append(f"- {tool['name']}: {tool.get('description', '')} params={schema}")
-    lines.append(
-        "If you have the final answer and need no tool, respond in plain text."
-    )
+    lines.append("If you have the final answer and need no tool, respond in plain text.")
     return "\n".join(lines)
 
 
@@ -100,7 +97,7 @@ class HFBackend:
         self.model = model
         self.mode = mode
         self._api_token = api_token or os.environ.get("HF_TOKEN")
-        self._pipeline = None  # for local mode
+        self._pipeline: Any = None  # for local mode
 
     def complete(
         self,
@@ -121,6 +118,7 @@ class HFBackend:
         else:
             text = self._complete_api(chat, max_tokens, temperature)
 
+        in_tokens = sum(len(m["content"]) // 4 for m in chat) + 8
         tool_call = _parse_tool_call(text) if tools else None
         if tool_call is not None:
             return LLMResponse(
@@ -128,12 +126,18 @@ class HFBackend:
                 tool_calls=[tool_call],
                 stop_reason="tool_use",
                 raw=text,
+                model=self.model,
+                usage={"input_tokens": in_tokens, "output_tokens": max(1, len(text) // 4)},
             )
-        return LLMResponse(text=text.strip(), stop_reason="end_turn", raw=text)
+        return LLMResponse(
+            text=text.strip(),
+            stop_reason="end_turn",
+            raw=text,
+            model=self.model,
+            usage={"input_tokens": in_tokens, "output_tokens": max(1, len(text) // 4)},
+        )
 
-    def _complete_api(
-        self, chat: List[Dict[str, str]], max_tokens: int, temperature: float
-    ) -> str:
+    def _complete_api(self, chat: List[Dict[str, str]], max_tokens: int, temperature: float) -> str:
         try:
             import httpx
         except ImportError as exc:  # pragma: no cover
@@ -173,14 +177,14 @@ class HFBackend:
             try:
                 from transformers import pipeline
             except ImportError as exc:
-                raise RuntimeError(
-                    "transformers (and torch) are required for HF local mode."
-                ) from exc
+                raise RuntimeError("transformers (and torch) are required for HF local mode.") from exc
             self._pipeline = pipeline("text-generation", model=self.model)
 
+        pipe = self._pipeline
+        assert pipe is not None
         # Most chat models expose a chat template via the tokenizer.
         try:
-            out = self._pipeline(
+            out = pipe(
                 chat,
                 max_new_tokens=max_tokens,
                 temperature=max(temperature, 0.01),
@@ -192,5 +196,5 @@ class HFBackend:
             return str(generated)
         except Exception:  # fall back to plain prompt
             prompt = "\n".join(f"{m['role']}: {m['content']}" for m in chat)
-            out = self._pipeline(prompt, max_new_tokens=max_tokens)
+            out = pipe(prompt, max_new_tokens=max_tokens)
             return out[0]["generated_text"]

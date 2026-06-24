@@ -65,3 +65,4 @@ datasets/
 *.swo
 .DS_Store
 Thumbs.db
+*.log

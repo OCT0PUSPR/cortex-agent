@@ -1,0 +1,22 @@
+# Developer / CI toolchain: run the full test suite, lint, type-check, security
+# scan, and migrations. Installs the runtime deps first (so the hardening layer
+# — db, auth, observability, worker — is importable), then the QA tools.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Note: torch / TinyBrain are intentionally NOT here — the torch-gated tests skip
+# cleanly without it (see requirements-train.txt to exercise the ML path too).
+
+-r requirements.txt
+
+# test runner + async + coverage
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=5.0.0
+coverage>=7.4.0
+
+# lint / type / security
+ruff>=0.4.0
+mypy>=1.9.0
+bandit[toml]>=1.7.0
+pip-audit>=2.7.0

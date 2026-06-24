@@ -130,7 +130,7 @@ class LongTermMemory:
             (content, kind, embedding, time.time()),
         )
         self._conn.commit()
-        return int(cur.lastrowid)
+        return int(cur.lastrowid or 0)
 
     # -- recall ---------------------------------------------------------- #
     def recall(self, query: str, top_k: int = 5) -> List[MemoryRecord]:
@@ -147,9 +147,7 @@ class LongTermMemory:
         terms = set(_tokenize(query))
         if not terms:
             return []
-        rows = self._conn.execute(
-            "SELECT id, content, kind, created_at FROM memories"
-        ).fetchall()
+        rows = self._conn.execute("SELECT id, content, kind, created_at FROM memories").fetchall()
         scored: List[MemoryRecord] = []
         for row in rows:
             doc_terms = _tokenize(row["content"])
@@ -173,10 +171,9 @@ class LongTermMemory:
         return scored[:top_k]
 
     def _recall_vector(self, query: str, top_k: int) -> List[MemoryRecord]:  # pragma: no cover
+        assert self._model is not None  # guaranteed by the caller (use_vectors path)
         qvec = self._model.encode(query).tolist()
-        rows = self._conn.execute(
-            "SELECT id, content, kind, embedding, created_at FROM memories"
-        ).fetchall()
+        rows = self._conn.execute("SELECT id, content, kind, embedding, created_at FROM memories").fetchall()
         scored: List[MemoryRecord] = []
         for row in rows:
             if not row["embedding"]:
@@ -197,13 +194,9 @@ class LongTermMemory:
 
     def all(self) -> List[MemoryRecord]:
         """Return every stored memory (newest first)."""
-        rows = self._conn.execute(
-            "SELECT id, content, kind, created_at FROM memories ORDER BY id DESC"
-        ).fetchall()
+        rows = self._conn.execute("SELECT id, content, kind, created_at FROM memories ORDER BY id DESC").fetchall()
         return [
-            MemoryRecord(
-                id=r["id"], content=r["content"], kind=r["kind"], score=0.0, created_at=r["created_at"]
-            )
+            MemoryRecord(id=r["id"], content=r["content"], kind=r["kind"], score=0.0, created_at=r["created_at"])
             for r in rows
         ]
 

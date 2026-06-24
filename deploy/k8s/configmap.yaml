@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cortex-config
+  namespace: cortex
+  labels:
+    app.kubernetes.io/name: cortex-agent
+    app.kubernetes.io/part-of: cortex-agent
+# Non-secret runtime configuration (CORTEX_-prefixed env, read by
+# cortex/config.py via pydantic-settings). Secrets (API keys, JWT secret, DB
+# password) live in the Secret, NOT here. See secret.example.yaml.
+data:
+  # -- server --------------------------------------------------------------
+  CORTEX_HOST: "0.0.0.0"
+  CORTEX_PORT: "8000"
+  CORTEX_LOG_LEVEL: "INFO"
+  CORTEX_LOG_JSON: "true"
+  CORTEX_ENABLE_METRICS: "true"
+
+  # -- LLM / agent ---------------------------------------------------------
+  # Set to "anthropic" once ANTHROPIC_API_KEY is provided via the Secret.
+  CORTEX_BACKEND: "mock"
+  CORTEX_MODEL: ""
+  CORTEX_FALLBACK_BACKENDS: "hf,mock"
+  CORTEX_MAX_STEPS: "8"
+  CORTEX_MAX_TOKENS: "2048"
+  CORTEX_TEMPERATURE: "0.7"
+  CORTEX_RUN_TIMEOUT_SECONDS: "300"
+
+  # -- tools / sandbox -----------------------------------------------------
+  CORTEX_WORKSPACE: "/app/.cortex/workspace"
+  CORTEX_ENABLE_NETWORK_TOOLS: "true"
+
+  # -- queue / scale -------------------------------------------------------
+  # Route runs through the arq worker (requires the worker Deployment + Redis).
+  CORTEX_USE_QUEUE: "true"
+  CORTEX_MAX_CONCURRENT_RUNS: "16"
+
+  # -- connections (non-secret hosts; password is injected from the Secret) -
+  # NOTE: the full CORTEX_DATABASE_URL / CORTEX_SYNC_DATABASE_URL / CORTEX_REDIS_URL
+  # (which embed credentials) are provided by the Secret so credentials never
+  # land in a ConfigMap.
+
+  # -- security ------------------------------------------------------------
+  CORTEX_AUTH_REQUIRED: "true"
+  CORTEX_JWT_ALGORITHM: "HS256"
+  CORTEX_JWT_EXPIRE_MINUTES: "60"
+  CORTEX_CORS_ORIGINS: "https://cortex.example.com"
+  CORTEX_RATE_LIMIT_PER_MINUTE: "30"

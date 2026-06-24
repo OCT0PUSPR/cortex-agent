@@ -74,6 +74,19 @@ class MockLLM:
         max_tokens: int = 2048,
         temperature: float = 0.7,
     ) -> LLMResponse:
+        resp = self._complete_impl(messages, tools)
+        # Stamp model + a deterministic synthetic token usage for accounting.
+        resp.model = self.model
+        in_tokens = sum(len(m.content) // 4 for m in messages) + 8
+        out_tokens = max(1, len(resp.text) // 4)
+        resp.usage = {"input_tokens": in_tokens, "output_tokens": out_tokens}
+        return resp
+
+    def _complete_impl(
+        self,
+        messages: List[Message],
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> LLMResponse:
         goal = _last_user_goal(messages)
         goal_lower = goal.lower()
         available = _tool_names(tools)
@@ -125,9 +138,7 @@ class MockLLM:
             expr = expr.replace("x", "*")
             return ToolCall(_new_id(), "calculator", {"expression": expr})
 
-        if "current_time" in available and any(
-            w in goal_lower for w in ("time", "date", "today", "now", "clock")
-        ):
+        if "current_time" in available and any(w in goal_lower for w in ("time", "date", "today", "now", "clock")):
             return ToolCall(_new_id(), "current_time", {})
 
         if "read_file" in available and "read" in goal_lower:
@@ -147,9 +158,7 @@ class MockLLM:
         ):
             return ToolCall(_new_id(), "web_search", {"query": goal})
 
-        if "run_python" in available and any(
-            w in goal_lower for w in ("python", "script", "code", "program")
-        ):
+        if "run_python" in available and any(w in goal_lower for w in ("python", "script", "code", "program")):
             return ToolCall(
                 _new_id(),
                 "run_python",
@@ -200,12 +209,9 @@ class MockLLM:
     def _final_answer(self, goal: str, observations: List[str]) -> str:
         if observations:
             joined = "; ".join(o.strip() for o in observations if o.strip())
-            return (
-                f"Done. For your request \"{goal}\", I used my tools and found: "
-                f"{joined}. That completes the task."
-            )
+            return f'Done. For your request "{goal}", I used my tools and found: {joined}. That completes the task.'
         return (
-            f"For your request \"{goal}\": I considered the available tools and "
+            f'For your request "{goal}": I considered the available tools and '
             f"can answer directly. (No tool call was necessary.)"
         )
 

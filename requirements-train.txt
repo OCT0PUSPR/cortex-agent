@@ -1,0 +1,7 @@
+# Dependencies for training & serving the from-scratch TinyBrain model.
+# These are intentionally separate from the core runtime: the agent framework
+# (and CI) runs without torch — TinyBrain is opt-in.
+torch>=2.2.0
+numpy>=1.24.0
+tokenizers>=0.15.0    # used ONLY for learning BPE merges; the model is ours
+httpx>=0.27.0         # auto-downloads TinyShakespeare (offline-safe fallback)

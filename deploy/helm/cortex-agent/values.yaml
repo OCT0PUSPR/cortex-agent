@@ -1,0 +1,154 @@
+# Default values for cortex-agent.
+# This is a YAML-formatted file. Override with `-f my-values.yaml` or `--set`.
+
+# -- Container image ----------------------------------------------------------
+image:
+  repository: cortex-agent
+  tag: ""              # defaults to .Chart.AppVersion when empty
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# -- API Deployment -----------------------------------------------------------
+api:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  # Probes hit the FastAPI ops endpoints.
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -- Worker Deployment (arq) --------------------------------------------------
+worker:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# -- Database migrations (alembic upgrade head) -------------------------------
+# Run as an initContainer on the API pod before it serves traffic.
+migrations:
+  enabled: true
+
+# -- Pod security -------------------------------------------------------------
+# Pod-level: run as the non-root `cortex` user (uid 1000) baked into the image.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+# Container-level: drop all capabilities, no privilege escalation.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Service ------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# -- Ingress ------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: cortex.example.com
+  path: /
+  pathType: Prefix
+  tls:
+    enabled: false
+    secretName: cortex-tls
+
+# -- Horizontal Pod Autoscaler (API) ------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# -- Non-secret CORTEX_ configuration (rendered into a ConfigMap) -------------
+env:
+  CORTEX_HOST: "0.0.0.0"
+  CORTEX_PORT: "8000"
+  CORTEX_LOG_LEVEL: "INFO"
+  CORTEX_LOG_JSON: "true"
+  CORTEX_ENABLE_METRICS: "true"
+  CORTEX_BACKEND: "mock"
+  CORTEX_MODEL: ""
+  CORTEX_FALLBACK_BACKENDS: "hf,mock"
+  CORTEX_MAX_STEPS: "8"
+  CORTEX_MAX_TOKENS: "2048"
+  CORTEX_TEMPERATURE: "0.7"
+  CORTEX_WORKSPACE: "/app/.cortex/workspace"
+  CORTEX_ENABLE_NETWORK_TOOLS: "true"
+  CORTEX_USE_QUEUE: "true"
+  CORTEX_AUTH_REQUIRED: "true"
+  CORTEX_JWT_ALGORITHM: "HS256"
+  CORTEX_JWT_EXPIRE_MINUTES: "60"
+  CORTEX_CORS_ORIGINS: "https://cortex.example.com"
+  CORTEX_RATE_LIMIT_PER_MINUTE: "30"
+
+# -- Connection settings ------------------------------------------------------
+# The async/sync DB URLs and the Redis URL are assembled from these values and
+# the DB password (from .Values.secrets.postgresPassword) and injected via the
+# Secret so credentials never appear in the ConfigMap.
+postgres:
+  host: postgres
+  port: 5432
+  database: cortex
+  user: cortex
+
+redis:
+  url: redis://redis:6379
+
+# -- Secrets ------------------------------------------------------------------
+# When create=true the chart renders a Secret from these values. For production
+# prefer create=false and reference a pre-existing Secret via existingSecret,
+# managed by an external secrets operator / sealed-secrets. NEVER commit real
+# values into a values file.
+secrets:
+  create: true
+  existingSecret: ""           # if set, the chart uses this Secret and skips rendering one
+  anthropicApiKey: "CHANGE_ME"
+  hfToken: ""
+  jwtSecret: "CHANGE_ME_openssl_rand_hex_32"
+  postgresPassword: "CHANGE_ME"
+
+# -- Scheduling ---------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

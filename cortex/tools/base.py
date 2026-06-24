@@ -38,6 +38,8 @@ class Tool:
         required: Names of required parameters.
         func: Callable invoked with validated keyword arguments. May return a
             ``ToolResult``, a string, or any value (coerced to ``ToolResult``).
+        dangerous: When True, the tool mutates state or reaches the network and
+            may be gated behind human approval by a :class:`~cortex.policy.Policy`.
     """
 
     name: str
@@ -45,6 +47,7 @@ class Tool:
     parameters: Dict[str, Any] = field(default_factory=dict)
     required: List[str] = field(default_factory=list)
     func: Optional[Callable[..., Any]] = None
+    dangerous: bool = False
 
     def to_schema(self) -> Dict[str, Any]:
         """Render this tool in Anthropic's ``tools`` definition format."""

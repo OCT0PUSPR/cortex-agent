@@ -141,13 +141,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--backend",
         default="mock",
-        choices=["mock", "anthropic", "hf"],
-        help="LLM backend (default: mock; works with no API key).",
+        choices=["mock", "anthropic", "hf", "tinybrain"],
+        help="LLM backend (default: mock; works with no API key). 'tinybrain' serves the local from-scratch model.",
     )
-    parser.add_argument("--model", default=None, help="Model id override.")
     parser.add_argument(
-        "--max-steps", type=int, default=8, help="Maximum ReAct steps."
+        "--model",
+        default=None,
+        help="Model id override (for tinybrain: the checkpoint dir/path).",
     )
+    parser.add_argument("--max-steps", type=int, default=8, help="Maximum ReAct steps.")
 
     sub = parser.add_subparsers(dest="command", required=True)
 

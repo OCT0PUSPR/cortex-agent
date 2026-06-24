@@ -49,10 +49,7 @@ def test_stream_yields_events_in_order(registry, memory):
     assert events[0].type is EventType.PLAN
     assert events[-1].type is EventType.ANSWER
     # current_time tool should be invoked for a time question.
-    assert any(
-        e.type is EventType.TOOL_CALL and e.data.get("tool") == "current_time"
-        for e in events
-    )
+    assert any(e.type is EventType.TOOL_CALL and e.data.get("tool") == "current_time" for e in events)
 
 
 def test_agent_writes_to_memory(registry, memory):

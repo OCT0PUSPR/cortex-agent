@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main, master]
 
+# The MockLLM backend means the suite needs no API key and no network. torch is
+# NOT installed in CI: the TinyBrain tests skip cleanly, and `import cortex`
+# never requires torch.
+env:
+  CORTEX_BACKEND: mock
+  CORTEX_ENABLE_NETWORK_TOOLS: "false"
+  CORTEX_WORKSPACE: .cortex/workspace
+  CORTEX_MEMORY_DB: .cortex/memory.sqlite
+
 jobs:
   test:
     name: lint + test (Python ${{ matrix.python-version }})
@@ -15,13 +24,6 @@ jobs:
       matrix:
         python-version: ["3.9", "3.11", "3.12"]
 
-    # The MockLLM backend means tests need no API key and no network.
-    env:
-      CORTEX_BACKEND: mock
-      CORTEX_ENABLE_NETWORK_TOOLS: "false"
-      CORTEX_WORKSPACE: .cortex/workspace
-      CORTEX_MEMORY_DB: .cortex/memory.sqlite
-
     steps:
       - uses: actions/checkout@v4
 
@@ -29,17 +31,80 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
-      - name: Install minimal dependencies (no heavy ML deps)
+      - name: Install runtime + dev dependencies (no torch)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-min.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Lint with ruff
+      - name: Lint (ruff check)
         run: ruff check cortex tests
+
+      - name: Format check (ruff format --check)
+        run: ruff format --check cortex tests
 
       - name: Compile check
         run: python -m py_compile $(git ls-files '*.py')
 
-      - name: Run tests (MockLLM only, offline)
-        run: pytest -q
+      - name: Test + coverage (MockLLM, offline; >=80% on cortex core)
+        run: pytest -q --cov=cortex --cov-report=term-missing --cov-fail-under=80
+
+  quality:
+    name: type + security + migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install runtime + dev dependencies (no torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Type-check (mypy; missing stubs for anthropic/torch/etc. ignored)
+        run: mypy cortex --ignore-missing-imports
+
+      - name: Security scan (bandit)
+        run: bandit -c pyproject.toml -r cortex
+
+      - name: Dependency audit (pip-audit)
+        # Non-blocking: some advisories are only fixed on Python >= 3.10 and the
+        # core package must stay 3.9-compatible. Surfaced for visibility.
+        continue-on-error: true
+        run: pip-audit -r requirements-min.txt
+
+      - name: Migrations run + reverse on a temp SQLite
+        env:
+          CORTEX_SYNC_DATABASE_URL: "sqlite:///./ci_migrations.db"
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+  docker:
+    name: docker buildx (amd64, arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-arch image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: cortex-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

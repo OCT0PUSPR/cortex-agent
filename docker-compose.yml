@@ -1,26 +1,86 @@
 services:
-  cortex:
+  # ---- API + web UI -------------------------------------------------------
+  api:
     build: .
     image: cortex-agent:latest
-    container_name: cortex-agent
+    container_name: cortex-api
     ports:
       - "8000:8000"
     environment:
-      # Default to the offline mock backend so the stack runs with no API key.
       CORTEX_BACKEND: ${CORTEX_BACKEND:-mock}
       CORTEX_MODEL: ${CORTEX_MODEL:-}
       CORTEX_MAX_STEPS: ${CORTEX_MAX_STEPS:-8}
+      CORTEX_AUTH_REQUIRED: ${CORTEX_AUTH_REQUIRED:-false}
+      CORTEX_USE_QUEUE: ${CORTEX_USE_QUEUE:-false}
       CORTEX_WORKSPACE: /app/.cortex/workspace
-      CORTEX_MEMORY_DB: /app/.cortex/memory.sqlite
-      # Pass these through from your shell / .env to use real backends:
+      # Postgres-backed in compose; override to sqlite for a single container.
+      CORTEX_DATABASE_URL: postgresql+asyncpg://cortex:cortex@postgres:5432/cortex
+      CORTEX_SYNC_DATABASE_URL: postgresql+psycopg://cortex:cortex@postgres:5432/cortex
+      CORTEX_REDIS_URL: redis://redis:6379
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       HF_TOKEN: ${HF_TOKEN:-}
     env_file:
       - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      # Persist memory + workspace across container restarts.
       - cortex-data:/app/.cortex
+    restart: unless-stopped
+
+  # ---- arq worker (executes queued runs) ----------------------------------
+  worker:
+    build: .
+    image: cortex-agent:latest
+    container_name: cortex-worker
+    command: ["arq", "cortex.worker.worker_settings.WorkerSettings"]
+    environment:
+      CORTEX_BACKEND: ${CORTEX_BACKEND:-mock}
+      CORTEX_DATABASE_URL: postgresql+asyncpg://cortex:cortex@postgres:5432/cortex
+      CORTEX_REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - cortex-data:/app/.cortex
+    restart: unless-stopped
+
+  # ---- Redis (arq broker) -------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: cortex-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---- Postgres (durable state) -------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: cortex-postgres
+    environment:
+      POSTGRES_USER: cortex
+      POSTGRES_PASSWORD: cortex
+      POSTGRES_DB: cortex
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cortex"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - pg-data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
   cortex-data:
+  pg-data:

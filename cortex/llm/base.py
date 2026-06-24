@@ -37,6 +37,7 @@ class LLMResponse:
         stop_reason: Why generation stopped ("end_turn", "tool_use", ...).
         raw: The provider's raw response object, for debugging.
         usage: Optional token-usage dict (input/output) when available.
+        model: The model id that produced the response (for cost accounting).
     """
 
     text: str = ""
@@ -44,6 +45,7 @@ class LLMResponse:
     stop_reason: str = "end_turn"
     raw: Any = None
     usage: Optional[Dict[str, int]] = None
+    model: str = ""
 
     @property
     def wants_tools(self) -> bool:

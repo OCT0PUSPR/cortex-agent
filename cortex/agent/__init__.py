@@ -1,4 +1,4 @@
-"""The agent package: the ReAct loop, events, and planner."""
+"""The agent package: the ReAct loop, async runtime, events, and planner."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from .loop import (
     EventType,
 )
 from .planner import Plan, Planner
+from .runtime import AsyncAgent, RunContext
 
 __all__ = [
     "Agent",
@@ -17,4 +18,6 @@ __all__ = [
     "EventType",
     "Plan",
     "Planner",
+    "AsyncAgent",
+    "RunContext",
 ]

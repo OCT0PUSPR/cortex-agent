@@ -164,9 +164,7 @@ class Agent:
 
             # Record the assistant turn (text + tool calls) so the next request
             # includes the tool_use blocks the provider expects.
-            messages.append(
-                Message(role="assistant", content=resp.text, tool_calls=resp.tool_calls)
-            )
+            messages.append(Message(role="assistant", content=resp.text, tool_calls=resp.tool_calls))
 
             # Execute each requested tool and gather results.
             tool_results: List[Dict[str, Any]] = []

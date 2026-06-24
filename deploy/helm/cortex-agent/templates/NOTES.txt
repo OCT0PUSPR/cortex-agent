@@ -1,0 +1,58 @@
+cortex-agent has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart:     {{ .Chart.Name }}-{{ .Chart.Version }} (appVersion {{ .Chart.AppVersion }})
+Image:     {{ include "cortex-agent.image" . }}
+
+Components:
+  - API     : Deployment {{ include "cortex-agent.fullname" . }}-api ({{ .Values.api.replicaCount }} replicas)
+  - Worker  : Deployment {{ include "cortex-agent.fullname" . }}-worker ({{ .Values.worker.replicaCount }} replicas, arq)
+  - Service : {{ include "cortex-agent.fullname" . }} ({{ .Values.service.type }}, port {{ .Values.service.port }} -> 8000)
+
+{{- if .Values.migrations.enabled }}
+
+Database migrations (`alembic upgrade head`) run automatically as an
+initContainer on the API pod before it starts serving.
+{{- end }}
+
+1. Check rollout status:
+
+   kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "cortex-agent.fullname" . }}-api
+
+{{- if .Values.ingress.enabled }}
+
+2. The API is exposed via Ingress at:
+
+   http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+
+   Health:    http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}/health
+   Readiness: http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}/ready
+{{- if not .Values.ingress.tls.enabled }}
+
+   NOTE: TLS is disabled. Install cert-manager and set
+   `ingress.tls.enabled=true` (plus the cluster-issuer annotation) for HTTPS.
+{{- end }}
+{{- else }}
+
+2. Ingress is disabled. Port-forward to reach the API locally:
+
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "cortex-agent.fullname" . }} 8000:{{ .Values.service.port }}
+   curl http://127.0.0.1:8000/health
+{{- end }}
+
+{{- if .Values.secrets.create }}
+{{- if or (eq .Values.secrets.anthropicApiKey "CHANGE_ME") (eq .Values.secrets.jwtSecret "CHANGE_ME_openssl_rand_hex_32") (eq .Values.secrets.postgresPassword "CHANGE_ME") }}
+
+WARNING: One or more secret values still hold their CHANGE_ME placeholder.
+Set real values before going to production, e.g.:
+
+  helm upgrade {{ .Release.Name }} . \
+    --set secrets.anthropicApiKey=$ANTHROPIC_API_KEY \
+    --set secrets.jwtSecret=$(openssl rand -hex 32) \
+    --set secrets.postgresPassword=$DB_PASSWORD
+
+Or set `secrets.create=false` and `secrets.existingSecret=<name>` to use an
+externally managed Secret.
+{{- end }}
+{{- end }}

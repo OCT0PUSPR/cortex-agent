@@ -66,7 +66,7 @@ class AnthropicBackend:
         self.name = "anthropic"
         self.model = model
         self._api_key = api_key
-        self._client = None  # lazily constructed
+        self._client: Any = None  # lazily constructed
 
     def _ensure_client(self) -> Any:
         if self._client is not None:
@@ -134,4 +134,5 @@ class AnthropicBackend:
             stop_reason=getattr(resp, "stop_reason", "end_turn") or "end_turn",
             raw=resp,
             usage=usage,
+            model=getattr(resp, "model", self.model),
         )

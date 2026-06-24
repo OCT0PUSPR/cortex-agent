@@ -1,0 +1,19 @@
+apiVersion: v2
+name: cortex-agent
+description: An autonomous AI agent framework (FastAPI API + arq worker, backed by Postgres + Redis).
+type: application
+# Chart version — bump on any change to the chart itself.
+version: 0.1.0
+# appVersion — the version of cortex-agent this chart deploys by default.
+appVersion: "0.2.0"
+keywords:
+  - ai
+  - agent
+  - llm
+  - fastapi
+  - arq
+home: https://github.com/your-org/cortex-agent
+sources:
+  - https://github.com/your-org/cortex-agent
+maintainers:
+  - name: cortex-agent maintainers
